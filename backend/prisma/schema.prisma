@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ArtStyle {
+  Cartoon
+  Comic
+  Pixel
+}
+
+enum ComicLength {
+  Short
+  Medium
+  Long
+}
+
+enum ComicStatus {
+  generating
+  done
+  failed
+}
+
+enum CharacterType {
+  Superhero
+  Robot
+  Animal
+  Fantasy
+  Historical
+}
+
+model User {
+  id                    String      @id @default(cuid())
+  name                  String
+  xp                    Int         @default(0)
+  xpGoal                Int         @default(1000)
+  gems                  Int         @default(0)
+  streakDays            Int         @default(0)
+  level                 Int         @default(1)
+  dailyChallengeDone    Int         @default(0)
+  dailyChallengeGoal    Int         @default(5)
+  dailyChallengeRewardXp Int        @default(50)
+  lastActiveDate        DateTime?
+  comics                Comic[]
+  characters            Character[]
+  speechAttempts        SpeechAttempt[]
+  createdAt             DateTime    @default(now())
+}
+
+model Comic {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  title       String
+  genre       String      @default("")
+  style       ArtStyle
+  length      ComicLength
+  status      ComicStatus @default(generating)
+  progressPct Int         @default(0)
+  panelsTotal Int
+  panels      Panel[]
+  createdAt   DateTime    @default(now())
+}
+
+model Panel {
+  id         String         @id @default(cuid())
+  comicId    String
+  comic      Comic          @relation(fields: [comicId], references: [id])
+  index      Int
+  sceneLabel String
+  imageUrl   String?
+  dialogue   DialogueLine[]
+}
+
+model DialogueLine {
+  id             String          @id @default(cuid())
+  panelId        String
+  panel          Panel           @relation(fields: [panelId], references: [id])
+  speaker        String
+  text           String
+  order          Int
+  speechAttempts SpeechAttempt[]
+}
+
+model Character {
+  id       String        @id @default(cuid())
+  userId   String
+  user     User          @relation(fields: [userId], references: [id])
+  type     CharacterType
+  name     String
+  traits   String[]
+  color    String
+  imageUrl String?
+  level    Int           @default(1)
+}
+
+model SpeechAttempt {
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+  lineId     String
+  line       DialogueLine @relation(fields: [lineId], references: [id])
+  transcript String
+  score      Int
+  createdAt  DateTime     @default(now())
+}

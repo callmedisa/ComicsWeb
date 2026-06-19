@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: #f3faf8;
+    color: #143230;
+  }
+}
+
+@layer components {
+  .btn-3d {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn font-display font-bold transition-transform duration-100;
+  }
+  .btn-3d:active {
+    transform: translateY(4px);
+  }
+
+  .label-caps {
+    @apply text-[12px] font-extrabold uppercase tracking-[.06em] text-muted;
+  }
+
+  .comic-panel {
+    @apply rounded-panel border-[3px] border-ink bg-white;
+  }
+
+  .speech-bubble {
+    @apply relative rounded-2xl border-[3px] border-ink bg-white px-4 py-3;
+  }
+  .speech-bubble::after {
+    content: "";
+    position: absolute;
+    left: 28px;
+    bottom: -12px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-right: 3px solid #143230;
+    border-bottom: 3px solid #143230;
+    transform: rotate(45deg);
+  }
+
+  .placeholder-art {
+    @apply flex items-center justify-center bg-[repeating-linear-gradient(135deg,#eaf4f1,#eaf4f1_10px,#ddede9_10px,#ddede9_20px)] font-mono text-[10px] uppercase tracking-[.1em] text-muted;
+  }
+}
