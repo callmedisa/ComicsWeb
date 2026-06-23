@@ -1,9 +1,12 @@
-import { BadRequestException, Body, Controller, Post, UploadedFile, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Post, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { AuthGuard } from "../auth/auth.guard";
+import { CurrentUserId } from "../auth/current-user.decorator";
 import { SpeechService } from "./speech.service";
 import { CreateAttemptDto } from "./dto";
 
 @Controller("speech")
+@UseGuards(AuthGuard)
 export class SpeechController {
   constructor(private speechService: SpeechService) {}
 
@@ -19,7 +22,7 @@ export class SpeechController {
   }
 
   @Post("attempts")
-  recordAttempt(@Body() dto: CreateAttemptDto) {
-    return this.speechService.recordAttempt(dto);
+  recordAttempt(@Body() dto: CreateAttemptDto, @CurrentUserId() userId: string) {
+    return this.speechService.recordAttempt(dto, userId);
   }
 }

@@ -9,7 +9,8 @@ const statusStyles: Record<string, string> = {
 
 export default async function DashboardPage() {
   const [user, comics] = await Promise.all([getMe(), getComics()]);
-  const continueComic = comics.find((c) => c.status === "done");
+  if (!user) return null;
+  const continueComic = comics.find((c) => c.status === "done" && c.panels.length > 0);
   const { dailyChallenge } = user;
 
   return (
@@ -20,17 +21,18 @@ export default async function DashboardPage() {
         <div className="rounded-card bg-ink p-7 text-white shadow-raised">
           <span className="label-caps text-white/60">Continue your story</span>
           <h2 className="mt-2 font-display text-2xl font-extrabold">
-            {continueComic?.title ?? "Pick a comic"}
+            {continueComic?.title ?? "No comics yet"}
           </h2>
-          <p className="mt-1 text-sm text-white/70">Panel 3 of 4</p>
-          <div className="mt-5 h-2 w-full overflow-hidden rounded-pill bg-white/15">
-            <div className="h-full w-[72%] rounded-pill bg-primary" />
-          </div>
+          <p className="mt-1 text-sm text-white/70">
+            {continueComic
+              ? `${continueComic.panelsTotal} panels to practice`
+              : "Create your first AI comic to start speaking practice"}
+          </p>
           <Link
-            href={`/read/${continueComic?.id ?? ""}`}
+            href={continueComic ? `/read/${continueComic.id}` : "/create"}
             className="btn-3d mt-6 bg-primary px-5 py-3 text-white shadow-btn-primary active:shadow-btn-primary-active"
           >
-            ▶ Resume
+            {continueComic ? "▶ Resume" : "✨ Create a comic"}
           </Link>
         </div>
 

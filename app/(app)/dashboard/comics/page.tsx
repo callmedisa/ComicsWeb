@@ -4,6 +4,7 @@ import { getMe, getComics } from "@/lib/api";
 
 export default async function MyComicsPage() {
   const [user, comics] = await Promise.all([getMe(), getComics()]);
+  if (!user) return null;
 
   return (
     <div>

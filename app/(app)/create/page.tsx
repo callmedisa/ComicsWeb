@@ -4,6 +4,7 @@ import { getMe, getCharacters } from "@/lib/api";
 
 export default async function CreatePage() {
   const [user, characters] = await Promise.all([getMe(), getCharacters()]);
+  if (!user) return null;
 
   return (
     <div>

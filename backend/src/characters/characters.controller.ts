@@ -1,14 +1,17 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { AuthGuard } from "../auth/auth.guard";
+import { CurrentUserId } from "../auth/current-user.decorator";
 import { CharactersService } from "./characters.service";
 import { CharacterPreviewDto, CreateCharacterDto } from "./dto";
 
 @Controller("characters")
+@UseGuards(AuthGuard)
 export class CharactersController {
   constructor(private charactersService: CharactersService) {}
 
   @Get()
-  findAll() {
-    return this.charactersService.findAll();
+  findAll(@CurrentUserId() userId: string) {
+    return this.charactersService.findAll(userId);
   }
 
   @Post("preview")
@@ -17,7 +20,7 @@ export class CharactersController {
   }
 
   @Post()
-  create(@Body() dto: CreateCharacterDto) {
-    return this.charactersService.create(dto);
+  create(@Body() dto: CreateCharacterDto, @CurrentUserId() userId: string) {
+    return this.charactersService.create(dto, userId);
   }
 }

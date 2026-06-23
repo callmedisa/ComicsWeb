@@ -65,4 +65,5 @@ export interface UserProfile {
   streakDays: number;
   level: number;
   dailyChallenge: { done: number; goal: number; rewardXp: number };
+  stats: { comicsCreated: number; linesSpoken: number; perfectScores: number };
 }

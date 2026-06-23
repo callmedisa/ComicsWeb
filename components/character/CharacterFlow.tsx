@@ -133,11 +133,11 @@ export function CharacterFlow() {
             <img
               src={imageUrl}
               alt={name || "character preview"}
-              className="h-48 w-full rounded-panel object-cover"
+              className="aspect-[4/3] w-full rounded-panel object-cover"
             />
           ) : (
             <div
-              className={`placeholder-art h-48 rounded-panel ${regenerating ? "animate-shimmer bg-[linear-gradient(90deg,#eaf4f1_0%,#fff_50%,#eaf4f1_100%)] bg-[length:400px_100%]" : ""}`}
+              className={`placeholder-art aspect-[4/3] rounded-panel ${regenerating ? "animate-shimmer bg-[linear-gradient(90deg,#eaf4f1_0%,#fff_50%,#eaf4f1_100%)] bg-[length:400px_100%]" : ""}`}
             >
               {regenerating ? "drawing…" : `${type.toLowerCase()} character art`}
             </div>

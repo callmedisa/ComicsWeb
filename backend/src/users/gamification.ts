@@ -57,3 +57,28 @@ export function applyDailyProgress(
 
   return { streakDays, dailyChallengeDone, lastActiveDate: now, challengeJustCompleted };
 }
+
+export interface LevelUpResult {
+  level: number;
+  xp: number;
+  xpGoal: number;
+  leveledUp: boolean;
+}
+
+const XP_GOAL_INCREMENT = 200;
+
+/**
+ * Called whenever XP is awarded. Levelling is a simple carry-over ladder:
+ * each level needs more XP than the last (+200 per level), and overflow XP
+ * rolls into the next level rather than being capped or lost.
+ */
+export function applyLevelUp(level: number, xp: number, xpGoal: number): LevelUpResult {
+  let leveledUp = false;
+  while (xp >= xpGoal) {
+    xp -= xpGoal;
+    level += 1;
+    xpGoal += XP_GOAL_INCREMENT;
+    leveledUp = true;
+  }
+  return { level, xp, xpGoal, leveledUp };
+}

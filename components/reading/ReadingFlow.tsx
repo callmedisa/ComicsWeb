@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { Comic } from "@/lib/types";
 import { scoreSpeech } from "@/lib/scoring";
-import { recordAttempt, transcribeAudio } from "@/lib/api-client";
+import { recordAttempt, regeneratePanelImage, transcribeAudio } from "@/lib/api-client";
 import { ScoreRing } from "./ScoreRing";
 import { Waveform } from "./Waveform";
 
@@ -14,8 +14,10 @@ const MAX_RECORDING_MS = 7000;
 
 export function ReadingFlow({ comic }: { comic: Comic }) {
   const [panelIndex, setPanelIndex] = useState(0);
+  const [panels, setPanels] = useState(comic.panels);
   const [recState, setRecState] = useState<RecState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
   const [result, setResult] = useState<ReturnType<typeof scoreSpeech> | null>(
     null
   );
@@ -23,9 +25,22 @@ export function ReadingFlow({ comic }: { comic: Comic }) {
   const chunksRef = useRef<Blob[]>([]);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const panel = comic.panels[panelIndex];
+  const panel = panels[panelIndex];
   const line = panel?.dialogue[0];
-  const isLast = panelIndex === comic.panels.length - 1;
+  const isLast = panelIndex === panels.length - 1;
+
+  async function retryPanelImage() {
+    if (!panel) return;
+    setRegenerating(true);
+    try {
+      const updated = await regeneratePanelImage(comic.id, panel.id);
+      setPanels((ps) => ps.map((p) => (p.id === panel.id ? updated : p)));
+    } catch {
+      setError("Couldn't redraw this panel. Try again in a moment.");
+    } finally {
+      setRegenerating(false);
+    }
+  }
 
   function finishWith(transcript: string) {
     if (!line) return;
@@ -123,7 +138,7 @@ export function ReadingFlow({ comic }: { comic: Comic }) {
           </h1>
         </div>
         <div className="flex items-center gap-1.5">
-          {comic.panels.map((_, i) => (
+          {panels.map((_, i) => (
             <span
               key={i}
               className={`h-2 w-8 rounded-pill ${
@@ -136,35 +151,40 @@ export function ReadingFlow({ comic }: { comic: Comic }) {
 
       <div className="grid grid-cols-1 gap-7 md:grid-cols-2">
         <div className="flex flex-col gap-5">
-          {comic.panels.slice(0, panelIndex + 1).map((p, i) => (
+          {panel && (
             <div
-              key={p.id}
-              className={`comic-panel p-4 ${
-                i === panelIndex ? "border-primary shadow-[0_0_0_4px_#E2F5F0]" : ""
-              }`}
+              key={panel.id}
+              className="comic-panel border-primary p-4 shadow-[0_0_0_4px_#E2F5F0]"
             >
-              {i === panelIndex && (
-                <span className="label-caps mb-2 inline-block rounded-pill bg-red/10 px-2.5 py-1 text-red-text">
-                  🎙️ Your line
-                </span>
-              )}
-              {p.imageUrl ? (
+              <span className="label-caps mb-2 inline-block rounded-pill bg-red/10 px-2.5 py-1 text-red-text">
+                🎙️ Your line
+              </span>
+              {panel.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={p.imageUrl}
-                  alt={p.sceneLabel}
-                  className="h-36 w-full rounded-panel object-cover"
+                  src={panel.imageUrl}
+                  alt={panel.sceneLabel}
+                  className="aspect-[4/3] w-full rounded-panel object-cover"
                 />
               ) : (
-                <div className="placeholder-art h-36 rounded-panel">{p.sceneLabel}</div>
+                <div className="placeholder-art flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-panel text-center">
+                  <span className="px-4 text-sm">{panel.sceneLabel}</span>
+                  <button
+                    onClick={retryPanelImage}
+                    disabled={regenerating}
+                    className="rounded-pill bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {regenerating ? "Drawing…" : "🔁 Retry image"}
+                  </button>
+                </div>
               )}
               <div className="speech-bubble mt-5">
                 <p className="font-body font-bold text-ink">
-                  {p.dialogue[0]?.speaker}: {p.dialogue[0]?.text}
+                  {panel.dialogue[0]?.speaker}: {panel.dialogue[0]?.text}
                 </p>
               </div>
             </div>
-          ))}
+          )}
         </div>
 
         <div className="rounded-card border border-border bg-white p-7 shadow-card">

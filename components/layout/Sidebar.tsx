@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { UserProfile } from "@/lib/types";
+import { logout } from "@/lib/api-client";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
@@ -14,6 +15,13 @@ const navItems = [
 
 export function Sidebar({ user }: { user: UserProfile }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await logout();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside className="flex h-screen w-[236px] flex-shrink-0 flex-col border-r border-border bg-white px-4 py-6">
@@ -51,12 +59,19 @@ export function Sidebar({ user }: { user: UserProfile }) {
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary font-display font-bold text-white">
           {user.name[0]}
         </div>
-        <div className="leading-tight">
-          <div className="font-display text-sm font-bold text-ink">
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="truncate font-display text-sm font-bold text-ink">
             {user.name}
           </div>
           <div className="text-xs text-muted">Level {user.level}</div>
         </div>
+        <button
+          onClick={handleLogout}
+          title="Log out"
+          className="text-muted-2 hover:text-red-text"
+        >
+          ⎋
+        </button>
       </div>
     </aside>
   );

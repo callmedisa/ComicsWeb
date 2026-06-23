@@ -1,7 +1,9 @@
 import { PrismaClient } from "@prisma/client";
+import * as bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// Demo login after seeding: name "Mia", password "demo1234".
 async function main() {
   await prisma.speechAttempt.deleteMany();
   await prisma.dialogueLine.deleteMany();
@@ -13,6 +15,7 @@ async function main() {
   const user = await prisma.user.create({
     data: {
       name: "Mia",
+      password: await bcrypt.hash("demo1234", 10),
       xp: 640,
       xpGoal: 1000,
       gems: 240,

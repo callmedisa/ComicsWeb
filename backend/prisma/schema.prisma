@@ -35,7 +35,8 @@ enum CharacterType {
 
 model User {
   id                    String      @id @default(cuid())
-  name                  String
+  name                  String      @unique
+  password              String?
   xp                    Int         @default(0)
   xpGoal                Int         @default(1000)
   gems                  Int         @default(0)

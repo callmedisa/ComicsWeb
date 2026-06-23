@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { applyDailyProgress } from "../users/gamification";
+import { applyDailyProgress, applyLevelUp } from "../users/gamification";
 import { CreateAttemptDto, GEMS_PER_SUCCESS, SUCCESS_SCORE_THRESHOLD, XP_PER_SUCCESS } from "./dto";
 
 const WHISPER_SERVICE_URL = process.env.WHISPER_SERVICE_URL ?? "http://localhost:8001";
@@ -30,17 +30,22 @@ export class SpeechService {
     return (body.text ?? "").trim();
   }
 
-  async recordAttempt(dto: CreateAttemptDto) {
+  async recordAttempt(dto: CreateAttemptDto, userId: string) {
     if (!dto.lineId) throw new BadRequestException("lineId is required");
     if (!Number.isInteger(dto.score) || dto.score < 0 || dto.score > 100) {
       throw new BadRequestException("score must be an integer between 0 and 100");
     }
 
-    const line = await this.prisma.dialogueLine.findUnique({ where: { id: dto.lineId } });
-    if (!line) throw new NotFoundException(`Line ${dto.lineId} not found`);
+    const line = await this.prisma.dialogueLine.findUnique({
+      where: { id: dto.lineId },
+      include: { panel: { include: { comic: true } } },
+    });
+    if (!line || line.panel.comic.userId !== userId) {
+      throw new NotFoundException(`Line ${dto.lineId} not found`);
+    }
 
-    const user = await this.prisma.user.findFirst();
-    if (!user) throw new NotFoundException("No seeded user found — run prisma:seed");
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("User not found");
 
     const success = dto.score >= SUCCESS_SCORE_THRESHOLD;
 
@@ -64,11 +69,14 @@ export class SpeechService {
       dailyChallengeGoal: user.dailyChallengeGoal,
     });
     const bonusXp = progress.challengeJustCompleted ? user.dailyChallengeRewardXp : 0;
+    const leveling = applyLevelUp(user.level, user.xp + XP_PER_SUCCESS + bonusXp, user.xpGoal);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        xp: user.xp + XP_PER_SUCCESS + bonusXp,
+        xp: leveling.xp,
+        xpGoal: leveling.xpGoal,
+        level: leveling.level,
         gems: user.gems + GEMS_PER_SUCCESS,
         streakDays: progress.streakDays,
         dailyChallengeDone: progress.dailyChallengeDone,
@@ -82,6 +90,8 @@ export class SpeechService {
       gemsAwarded: GEMS_PER_SUCCESS,
       streakDays: progress.streakDays,
       challengeCompleted: progress.challengeJustCompleted,
+      leveledUp: leveling.leveledUp,
+      level: leveling.level,
     };
   }
 }

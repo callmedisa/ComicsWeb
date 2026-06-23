@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArtStyle, Character, Comic, ComicLength } from "@/lib/types";
 import { ideaChips } from "@/lib/mock-data";
-import { createComic, fetchComic } from "@/lib/api-client";
+import { createComic, fetchComic, regeneratePanelImage } from "@/lib/api-client";
 
 const styles: ArtStyle[] = ["Cartoon", "Comic", "Pixel"];
 const lengths: { label: ComicLength; panels: number }[] = [
@@ -23,9 +23,18 @@ export function CreateFlow({ characters }: { characters: Character[] }) {
   const [characterIds, setCharacterIds] = useState<string[]>([]);
   const [comic, setComic] = useState<Comic | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [regeneratingPanelIds, setRegeneratingPanelIds] = useState<Set<string>>(new Set());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const totalPanels = lengths.find((l) => l.label === length)!.panels;
+
+  // Topic/style/length/characters all live on one screen, so "steps" aren't
+  // gated pages — they just mark progress: 1 (Topic) is current until you've
+  // typed something, then 2/3 (Style/Characters) read as done since both
+  // already have a valid value (style defaults, characters are optional),
+  // and 4 (Generate) is current while ready/generating, done once finished.
+  const currentStep = !topic.trim() ? 1 : comic?.status === "done" ? 4 : 4;
+  const stepDone = (n: number) => n < currentStep || (n === 4 && comic?.status === "done");
 
   useEffect(
     () => () => {
@@ -69,6 +78,25 @@ export function CreateFlow({ characters }: { characters: Character[] }) {
     setError(null);
   }
 
+  async function retryPanelImage(panelId: string) {
+    if (!comic) return;
+    setRegeneratingPanelIds((ids) => new Set(ids).add(panelId));
+    try {
+      const updated = await regeneratePanelImage(comic.id, panelId);
+      setComic((c) =>
+        c ? { ...c, panels: c.panels.map((p) => (p.id === panelId ? updated : p)) } : c
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't redraw that panel.");
+    } finally {
+      setRegeneratingPanelIds((ids) => {
+        const next = new Set(ids);
+        next.delete(panelId);
+        return next;
+      });
+    }
+  }
+
   return (
     <div>
       <div className="mb-7 flex items-center gap-3">
@@ -77,27 +105,33 @@ export function CreateFlow({ characters }: { characters: Character[] }) {
           { n: 2, label: "Style" },
           { n: 3, label: "Characters" },
           { n: 4, label: "Generate" },
-        ].map((step, i) => (
-          <div key={step.n} className="flex items-center gap-3">
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full font-display text-sm font-bold ${
-                i === 0
-                  ? "bg-primary text-white"
-                  : "bg-scoretrack text-muted"
-              }`}
-            >
-              {step.n}
+        ].map((step) => {
+          const done = stepDone(step.n);
+          const active = !done && step.n === currentStep;
+          return (
+            <div key={step.n} className="flex items-center gap-3">
+              <div
+                className={`flex h-7 w-7 items-center justify-center rounded-full font-display text-sm font-bold ${
+                  done
+                    ? "bg-green text-white"
+                    : active
+                      ? "bg-primary text-white"
+                      : "bg-scoretrack text-muted"
+                }`}
+              >
+                {done ? "✓" : step.n}
+              </div>
+              <span
+                className={`font-body font-bold ${
+                  done || active ? "text-ink" : "text-muted"
+                }`}
+              >
+                {step.label}
+              </span>
+              {step.n < 4 && <span className="mx-1 h-px w-8 bg-border" />}
             </div>
-            <span
-              className={`font-body font-bold ${
-                i === 0 ? "text-ink" : "text-muted"
-              }`}
-            >
-              {step.label}
-            </span>
-            {i < 3 && <span className="mx-1 h-px w-8 bg-border" />}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 gap-7 md:grid-cols-2">
@@ -219,20 +253,22 @@ export function CreateFlow({ characters }: { characters: Character[] }) {
           {comic?.status === "generating" && (
             <div>
               <div className="grid grid-cols-2 gap-3">
-                {Array.from({ length: totalPanels }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`flex h-24 items-center justify-center rounded-panel border-2 text-xs ${
-                      i < comic.panels.length
-                        ? "border-primary bg-primary-soft text-primary"
-                        : i === comic.panels.length
-                          ? "animate-shimmer border-border bg-[linear-gradient(90deg,#eaf4f1_0%,#fff_50%,#eaf4f1_100%)] bg-[length:400px_100%] text-muted"
-                          : "border-dashed border-border text-muted/50"
-                    }`}
-                  >
-                    {i < comic.panels.length ? "✓" : i + 1}
-                  </div>
-                ))}
+                {Array.from({ length: totalPanels }).map((_, i) => {
+                  const panel = comic.panels.find((p) => p.index === i + 1);
+                  const isDone = !!panel?.imageUrl;
+                  return (
+                    <div
+                      key={i}
+                      className={`flex h-24 items-center justify-center rounded-panel border-2 text-xs ${
+                        isDone
+                          ? "border-primary bg-primary-soft text-primary"
+                          : "animate-shimmer border-border bg-[linear-gradient(90deg,#eaf4f1_0%,#fff_50%,#eaf4f1_100%)] bg-[length:400px_100%] text-muted"
+                      }`}
+                    >
+                      {isDone ? "✓" : i + 1}
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-5 h-2 w-full overflow-hidden rounded-pill bg-scoretrack">
                 <div
@@ -241,7 +277,7 @@ export function CreateFlow({ characters }: { characters: Character[] }) {
                 />
               </div>
               <p className="mt-2 text-center text-sm font-bold text-muted">
-                Drawing panel {Math.min(comic.panels.length + 1, totalPanels)} of {totalPanels}…
+                Drawing {totalPanels - comic.panels.filter((p) => p.imageUrl).length} of {totalPanels} panels…
               </p>
             </div>
           )}
@@ -276,9 +312,16 @@ export function CreateFlow({ characters }: { characters: Character[] }) {
                   ) : (
                     <div
                       key={panel.id}
-                      className="placeholder-art h-24 rounded-panel border-2 border-primary"
+                      className="placeholder-art flex h-24 flex-col items-center justify-center gap-1.5 rounded-panel border-2 border-primary"
                     >
-                      panel {panel.index}
+                      <span className="text-xs">panel {panel.index}</span>
+                      <button
+                        onClick={() => retryPanelImage(panel.id)}
+                        disabled={regeneratingPanelIds.has(panel.id)}
+                        className="rounded-pill bg-primary px-2.5 py-1 text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {regeneratingPanelIds.has(panel.id) ? "Drawing…" : "🔁 Retry"}
+                      </button>
                     </div>
                   )
                 )}

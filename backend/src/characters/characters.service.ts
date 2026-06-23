@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { CharacterType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { ImagesService } from "../images/images.service";
@@ -12,12 +12,6 @@ export class CharactersService {
     private images: ImagesService
   ) {}
 
-  private async getDemoUserId() {
-    const user = await this.prisma.user.findFirst();
-    if (!user) throw new NotFoundException("No seeded user found — run prisma:seed");
-    return user.id;
-  }
-
   private validate(dto: CharacterPreviewDto) {
     if (!Object.values(CharacterType).includes(dto.type)) {
       throw new BadRequestException("invalid character type");
@@ -26,8 +20,7 @@ export class CharactersService {
     if (!dto.color?.trim()) throw new BadRequestException("color is required");
   }
 
-  async findAll() {
-    const userId = await this.getDemoUserId();
+  async findAll(userId: string) {
     const characters = await this.prisma.character.findMany({ where: { userId } });
     return characters.map((c) => ({
       id: c.id,
@@ -53,9 +46,8 @@ export class CharactersService {
     return { imageUrl };
   }
 
-  async create(dto: CreateCharacterDto) {
+  async create(dto: CreateCharacterDto, userId: string) {
     this.validate(dto);
-    const userId = await this.getDemoUserId();
 
     const character = await this.prisma.character.create({
       data: {
