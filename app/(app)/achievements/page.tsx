@@ -4,7 +4,8 @@ import { getMe } from "@/lib/api";
 import { buildBadges } from "@/lib/badges";
 
 export default async function AchievementsPage() {
-  const user = (await getMe())!;
+  const user = await getMe();
+  if (!user) redirect("/login");
   if (user.role === "TEACHER") redirect("/admin");
   const badges = buildBadges(user);
 

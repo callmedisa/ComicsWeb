@@ -5,7 +5,8 @@ import { CharacterFlow } from "@/components/character/CharacterFlow";
 import { getMe } from "@/lib/api";
 
 export default async function CharacterPage() {
-  const user = (await getMe())!;
+  const user = await getMe();
+  if (!user) redirect("/login");
   if (user.role === "TEACHER") redirect("/admin");
 
   return (
