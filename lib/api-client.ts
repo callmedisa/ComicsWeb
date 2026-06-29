@@ -2,7 +2,10 @@
 
 import { ArtStyle, Character, CharacterType, Comic, ComicLength, Panel, QuizQuestion, Role, TeacherProfile } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+// Always same-origin — requests go through the Next.js rewrite proxy in
+// next.config.js, which forwards them server-side to the real backend. This
+// keeps the auth cookie same-origin from the browser's perspective.
+const API_URL = "/api";
 
 export async function register(
   name: string,
