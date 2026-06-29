@@ -1,15 +1,19 @@
 "use client";
 
-import { ArtStyle, Character, CharacterType, Comic, ComicLength, Panel } from "./types";
+import { ArtStyle, Character, CharacterType, Comic, ComicLength, Panel, QuizQuestion, Role, TeacherProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 
-export async function register(name: string, password: string): Promise<{ id: string; name: string }> {
+export async function register(
+  name: string,
+  password: string,
+  teacherCode?: string
+): Promise<{ id: string; name: string; role: Role }> {
   const res = await fetch(`${API_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ name, password }),
+    body: JSON.stringify({ name, password, teacherCode }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -18,12 +22,16 @@ export async function register(name: string, password: string): Promise<{ id: st
   return res.json();
 }
 
-export async function login(name: string, password: string): Promise<{ id: string; name: string }> {
+export async function login(
+  name: string,
+  password: string,
+  role: Role
+): Promise<{ id: string; name: string; role: Role }> {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ name, password }),
+    body: JSON.stringify({ name, password, role }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -124,6 +132,93 @@ export async function saveCharacter(input: {
     throw new Error(body?.message ?? `Failed to save character: ${res.status}`);
   }
   return res.json();
+}
+
+export async function startLesson(lessonId: string): Promise<{ comicId: string }> {
+  const res = await fetch(`${API_URL}/lessons/${lessonId}/start`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `Failed to start lesson: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getQuiz(lessonId: string): Promise<QuizQuestion[]> {
+  const res = await fetch(`${API_URL}/lessons/${lessonId}/quiz`, { credentials: "include" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `Failed to load quiz: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function completeLesson(
+  lessonId: string,
+  score: number
+): Promise<{ xpAwarded: number; leveledUp: boolean; level: number }> {
+  const res = await fetch(`${API_URL}/lessons/${lessonId}/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ score }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `Failed to complete lesson: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function resetStudentPassword(studentId: string): Promise<{ tempPassword: string }> {
+  const res = await fetch(`${API_URL}/admin/students/${studentId}/reset-password`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `Failed to reset password: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function createTeacherProfile(formData: FormData): Promise<TeacherProfile> {
+  const res = await fetch(`${API_URL}/teachers`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `Failed to create teacher: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function updateTeacherProfile(id: string, formData: FormData): Promise<TeacherProfile> {
+  const res = await fetch(`${API_URL}/teachers/${id}`, {
+    method: "PUT",
+    credentials: "include",
+    body: formData,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `Failed to update teacher: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deleteTeacherProfile(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/teachers/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `Failed to delete teacher: ${res.status}`);
+  }
 }
 
 export async function recordAttempt(input: {

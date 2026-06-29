@@ -1,5 +1,14 @@
 import { cookies } from "next/headers";
-import { Character, Comic, UserProfile } from "./types";
+import {
+  AdminOverview,
+  Character,
+  Comic,
+  CourseSummary,
+  StudentDetail,
+  StudentSummary,
+  TeacherProfile,
+  UserProfile,
+} from "./types";
 
 const API_URL = process.env.API_URL ?? "http://localhost:3001/api";
 
@@ -37,4 +46,24 @@ export function getComic(id: string) {
 
 export function getCharacters() {
   return apiFetch<Character[]>("/characters");
+}
+
+export function getCourses() {
+  return apiFetch<CourseSummary[]>("/courses");
+}
+
+export function getStudents() {
+  return apiFetch<StudentSummary[]>("/admin/students");
+}
+
+export function getAdminOverview() {
+  return apiFetch<AdminOverview>("/admin/overview");
+}
+
+export function getStudentDetail(id: string) {
+  return apiFetch<StudentDetail>(`/admin/students/${id}`);
+}
+
+export function getTeachers() {
+  return apiFetch<TeacherProfile[]>("/teachers");
 }

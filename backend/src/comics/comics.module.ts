@@ -7,5 +7,6 @@ import { ImagesService } from "../images/images.service";
 @Module({
   controllers: [ComicsController],
   providers: [ComicsService, OllamaService, ImagesService],
+  exports: [ComicsService],
 })
 export class ComicsModule {}

@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { TopBar } from "@/components/layout/TopBar";
 import { getMe, getComics } from "@/lib/api";
 
 export default async function MyComicsPage() {
   const [user, comics] = await Promise.all([getMe(), getComics()]);
   if (!user) return null;
+  if (user.role === "TEACHER") redirect("/admin");
 
   return (
     <div>

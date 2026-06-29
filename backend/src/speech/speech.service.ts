@@ -4,6 +4,11 @@ import { applyDailyProgress, applyLevelUp } from "../users/gamification";
 import { CreateAttemptDto, GEMS_PER_SUCCESS, SUCCESS_SCORE_THRESHOLD, XP_PER_SUCCESS } from "./dto";
 
 const WHISPER_SERVICE_URL = process.env.WHISPER_SERVICE_URL ?? "http://localhost:8001";
+// Groq hosts a free Whisper API — used instead of the local mlx_whisper
+// service when deployed somewhere without Apple Silicon (mlx_whisper only
+// runs on Apple's MLX framework, i.e. Mac hardware).
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_WHISPER_MODEL = process.env.GROQ_WHISPER_MODEL ?? "whisper-large-v3-turbo";
 
 @Injectable()
 export class SpeechService {
@@ -12,6 +17,10 @@ export class SpeechService {
   constructor(private prisma: PrismaService) {}
 
   async transcribe(buffer: Buffer, filename: string): Promise<string> {
+    return GROQ_API_KEY ? this.transcribeGroq(buffer, filename) : this.transcribeLocal(buffer, filename);
+  }
+
+  private async transcribeLocal(buffer: Buffer, filename: string): Promise<string> {
     const formData = new FormData();
     formData.append("audio", new Blob([new Uint8Array(buffer)]), filename);
 
@@ -24,6 +33,27 @@ export class SpeechService {
     if (!res.ok) {
       this.logger.error(`Whisper service returned ${res.status}`);
       throw new Error(`Whisper service returned ${res.status}`);
+    }
+
+    const body = await res.json();
+    return (body.text ?? "").trim();
+  }
+
+  private async transcribeGroq(buffer: Buffer, filename: string): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", new Blob([new Uint8Array(buffer)]), filename);
+    formData.append("model", GROQ_WHISPER_MODEL);
+
+    const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
+      body: formData,
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!res.ok) {
+      this.logger.error(`Groq transcription returned ${res.status}`);
+      throw new Error(`Groq transcription returned ${res.status}`);
     }
 
     const body = await res.json();

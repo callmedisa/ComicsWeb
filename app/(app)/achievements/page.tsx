@@ -1,38 +1,11 @@
+import { redirect } from "next/navigation";
 import { TopBar } from "@/components/layout/TopBar";
 import { getMe } from "@/lib/api";
-import { UserProfile } from "@/lib/types";
-
-function buildBadges(user: UserProfile) {
-  return [
-    {
-      icon: "🔥",
-      label: "12-day streak",
-      earned: user.streakDays >= 12,
-      progress: `${Math.min(user.streakDays, 12)}/12 days`,
-    },
-    {
-      icon: "🎯",
-      label: "First perfect score",
-      earned: user.stats.perfectScores > 0,
-      progress: user.stats.perfectScores > 0 ? "Unlocked" : "Score 100 on a line",
-    },
-    {
-      icon: "📚",
-      label: "5 comics created",
-      earned: user.stats.comicsCreated >= 5,
-      progress: `${Math.min(user.stats.comicsCreated, 5)}/5 comics`,
-    },
-    {
-      icon: "🎙️",
-      label: "100 lines spoken",
-      earned: user.stats.linesSpoken >= 100,
-      progress: `${Math.min(user.stats.linesSpoken, 100)}/100 lines`,
-    },
-  ];
-}
+import { buildBadges } from "@/lib/badges";
 
 export default async function AchievementsPage() {
   const user = (await getMe())!;
+  if (user.role === "TEACHER") redirect("/admin");
   const badges = buildBadges(user);
 
   return (

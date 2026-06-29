@@ -5,13 +5,16 @@ import { usePathname, useRouter } from "next/navigation";
 import { UserProfile } from "@/lib/types";
 import { logout } from "@/lib/api-client";
 
-const navItems = [
+const studentNavItems = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
+  { href: "/courses", label: "Courses", icon: "🎓" },
   { href: "/dashboard/comics", label: "My Comics", icon: "📚" },
   { href: "/create", label: "Create", icon: "✨" },
   { href: "/character", label: "Characters", icon: "🦸" },
   { href: "/achievements", label: "Achievements", icon: "🏆" },
 ];
+
+const teacherNavItems = [{ href: "/admin", label: "Students", icon: "🛠️" }];
 
 export function Sidebar({ user }: { user: UserProfile }) {
   const pathname = usePathname();
@@ -19,9 +22,11 @@ export function Sidebar({ user }: { user: UserProfile }) {
 
   async function handleLogout() {
     await logout();
-    router.push("/login");
+    router.push("/");
     router.refresh();
   }
+
+  const items = user.role === "TEACHER" ? teacherNavItems : studentNavItems;
 
   return (
     <aside className="flex h-screen w-[236px] flex-shrink-0 flex-col border-r border-border bg-white px-4 py-6">
@@ -33,7 +38,7 @@ export function Sidebar({ user }: { user: UserProfile }) {
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const active =
             item.href === "/dashboard"
               ? pathname === "/dashboard"

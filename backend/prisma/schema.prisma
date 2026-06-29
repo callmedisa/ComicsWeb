@@ -33,15 +33,22 @@ enum CharacterType {
   Historical
 }
 
+enum Role {
+  STUDENT
+  TEACHER
+}
+
 model User {
   id                    String      @id @default(cuid())
   name                  String      @unique
   password              String?
+  role                  Role        @default(STUDENT)
   xp                    Int         @default(0)
   xpGoal                Int         @default(1000)
   gems                  Int         @default(0)
   streakDays            Int         @default(0)
   level                 Int         @default(1)
+  cefrLevel             String      @default("A1")
   dailyChallengeDone    Int         @default(0)
   dailyChallengeGoal    Int         @default(5)
   dailyChallengeRewardXp Int        @default(50)
@@ -49,6 +56,7 @@ model User {
   comics                Comic[]
   characters            Character[]
   speechAttempts        SpeechAttempt[]
+  lessonProgress        UserLessonProgress[]
   createdAt             DateTime    @default(now())
 }
 
@@ -108,4 +116,50 @@ model SpeechAttempt {
   transcript String
   score      Int
   createdAt  DateTime     @default(now())
+}
+
+model TeacherProfile {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  bio       String
+  photoUrl  String?
+  createdAt DateTime @default(now())
+}
+
+model Course {
+  id      String   @id @default(cuid())
+  title   String
+  level   String // "A1" | "A2" | "B1" | "B2"
+  order   Int
+  lessons Lesson[]
+
+  @@unique([level, order])
+}
+
+model Lesson {
+  id           String                @id @default(cuid())
+  courseId     String
+  course       Course                @relation(fields: [courseId], references: [id])
+  title        String
+  topic        String
+  order        Int
+  xpReward     Int                   @default(50)
+  userProgress UserLessonProgress[]
+
+  @@unique([courseId, order])
+}
+
+model UserLessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  lessonId    String
+  lesson      Lesson    @relation(fields: [lessonId], references: [id])
+  comicId     String?
+  status      String    @default("locked") // "locked" | "available" | "completed"
+  score       Int?
+  completedAt DateTime?
+
+  @@unique([userId, lessonId])
 }

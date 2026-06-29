@@ -20,27 +20,34 @@ export class AuthService {
     }
   }
 
-  async register(name: string, password: string) {
+  async register(name: string, password: string, teacherCode?: string) {
     this.validateCredentials(name, password);
     const trimmedName = name.trim();
 
     const existing = await this.prisma.user.findUnique({ where: { name: trimmedName } });
     if (existing) throw new ConflictException("That name is already taken");
 
+    const isTeacher = !!teacherCode && !!process.env.TEACHER_SIGNUP_CODE && teacherCode === process.env.TEACHER_SIGNUP_CODE;
     const hash = await bcrypt.hash(password, PASSWORD_HASH_ROUNDS);
     const user = await this.prisma.user.create({
-      data: { name: trimmedName, password: hash },
+      data: { name: trimmedName, password: hash, role: isTeacher ? "TEACHER" : "STUDENT" },
     });
     return user;
   }
 
-  async validateUser(name: string, password: string) {
+  async validateUser(name: string, password: string, role: "STUDENT" | "TEACHER") {
     this.validateCredentials(name, password);
     const user = await this.prisma.user.findUnique({ where: { name: name.trim() } });
     if (!user?.password) throw new UnauthorizedException("Incorrect name or password");
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new UnauthorizedException("Incorrect name or password");
+
+    if (user.role !== role) {
+      throw new UnauthorizedException(
+        role === "TEACHER" ? "This account is not a teacher account" : "This account is not a student account"
+      );
+    }
 
     return user;
   }

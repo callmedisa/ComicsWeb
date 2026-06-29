@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { TopBar } from "@/components/layout/TopBar";
 import { CharacterFlow } from "@/components/character/CharacterFlow";
 import { getMe } from "@/lib/api";
 
 export default async function CharacterPage() {
   const user = (await getMe())!;
+  if (user.role === "TEACHER") redirect("/admin");
 
   return (
     <div>

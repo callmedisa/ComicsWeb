@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Comic } from "@/lib/types";
 import { scoreSpeech } from "@/lib/scoring";
 import { recordAttempt, regeneratePanelImage, transcribeAudio } from "@/lib/api-client";
+import { ComicPage } from "./ComicPage";
 import { ScoreRing } from "./ScoreRing";
 import { Waveform } from "./Waveform";
 
@@ -12,12 +13,21 @@ type RecState = "idle" | "recording" | "transcribing" | "scored";
 
 const MAX_RECORDING_MS = 7000;
 
-export function ReadingFlow({ comic }: { comic: Comic }) {
+export function ReadingFlow({
+  comic,
+  onFinish,
+  onComplete,
+}: {
+  comic: Comic;
+  onFinish?: () => void;
+  onComplete?: (result: { avgScore: number; totalLines: number; earnedXp: number }) => void;
+}) {
   const [panelIndex, setPanelIndex] = useState(0);
   const [panels, setPanels] = useState(comic.panels);
   const [recState, setRecState] = useState<RecState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [lineScores, setLineScores] = useState<(number | undefined)[]>([]);
   const [result, setResult] = useState<ReturnType<typeof scoreSpeech> | null>(
     null
   );
@@ -47,7 +57,21 @@ export function ReadingFlow({ comic }: { comic: Comic }) {
     const scored = scoreSpeech(line.text, transcript);
     setResult(scored);
     setRecState("scored");
+    setLineScores((scores) => {
+      const next = [...scores];
+      next[panelIndex] = scored.score;
+      return next;
+    });
     recordAttempt({ lineId: line.id, transcript: scored.recognized, score: scored.score });
+  }
+
+  function computeResults() {
+    const scored = lineScores.filter((s): s is number => typeof s === "number");
+    const avgScore = scored.length
+      ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length)
+      : 0;
+    const earnedXp = scored.filter((s) => s >= 70).length * 30;
+    return { avgScore, totalLines: panels.length, earnedXp };
   }
 
   async function startRecording() {
@@ -152,37 +176,25 @@ export function ReadingFlow({ comic }: { comic: Comic }) {
       <div className="grid grid-cols-1 gap-7 md:grid-cols-2">
         <div className="flex flex-col gap-5">
           {panel && (
-            <div
-              key={panel.id}
-              className="comic-panel border-primary p-4 shadow-[0_0_0_4px_#E2F5F0]"
-            >
-              <span className="label-caps mb-2 inline-block rounded-pill bg-red/10 px-2.5 py-1 text-red-text">
+            <div key={panel.id} className="flex flex-col gap-3">
+              <span className="label-caps inline-block self-start rounded-pill bg-red/10 px-2.5 py-1 text-red-text">
                 🎙️ Your line
               </span>
-              {panel.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={panel.imageUrl}
-                  alt={panel.sceneLabel}
-                  className="aspect-[4/3] w-full rounded-panel object-cover"
-                />
-              ) : (
-                <div className="placeholder-art flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-panel text-center">
-                  <span className="px-4 text-sm">{panel.sceneLabel}</span>
-                  <button
-                    onClick={retryPanelImage}
-                    disabled={regenerating}
-                    className="rounded-pill bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {regenerating ? "Drawing…" : "🔁 Retry image"}
-                  </button>
-                </div>
-              )}
-              <div className="speech-bubble mt-5">
-                <p className="font-body font-bold text-ink">
-                  {panel.dialogue[0]?.speaker}: {panel.dialogue[0]?.text}
-                </p>
-              </div>
+              <ComicPage
+                panel={panel}
+                placeholder={
+                  <>
+                    <span className="px-4 text-sm">{panel.sceneLabel}</span>
+                    <button
+                      onClick={retryPanelImage}
+                      disabled={regenerating}
+                      className="rounded-pill bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {regenerating ? "Drawing…" : "🔁 Retry image"}
+                    </button>
+                  </>
+                }
+              />
             </div>
           )}
         </div>
@@ -294,6 +306,20 @@ export function ReadingFlow({ comic }: { comic: Comic }) {
                         className="btn-3d bg-primary px-4 py-2.5 text-white shadow-btn-primary active:shadow-btn-primary-active"
                       >
                         Next line →
+                      </button>
+                    ) : onComplete ? (
+                      <button
+                        onClick={() => onComplete(computeResults())}
+                        className="btn-3d bg-primary px-4 py-2.5 text-white shadow-btn-primary active:shadow-btn-primary-active"
+                      >
+                        Finish 🎉
+                      </button>
+                    ) : onFinish ? (
+                      <button
+                        onClick={onFinish}
+                        className="btn-3d bg-primary px-4 py-2.5 text-white shadow-btn-primary active:shadow-btn-primary-active"
+                      >
+                        Finish 🎉
                       </button>
                     ) : (
                       <Link

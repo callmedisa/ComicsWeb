@@ -3,16 +3,12 @@
 ## Overview
 ComicSpeak AI is a web platform where children learn English speaking by creating AI-generated comics, reading character dialogue out loud, and getting instant pronunciation scores with gamification (XP, streaks, badges).
 
-This package contains **6 designed screens** across two deliverables:
-- `ComicSpeak AI.dc.html` — static hi-fi gallery of all screens + two landing directions (the design reference / "spec").
-- `ComicSpeak AI Prototype.dc.html` — a clickable prototype of the core flow with real interactions (navigation, comic-generation animation, **real browser microphone** + speech scoring).
+The project started from a **6-screen hi-fi HTML design spec** (two landing directions, dashboard, comic creation, character creation, and the core reading/speech-practice flow), which has since been recreated and built out in the real stack below.
 
-## About the Design Files
-The files in this bundle are **design references authored in HTML** — prototypes that show the intended look and behavior. They are **not production code to copy directly**.
+## Stack
+Built with **Next.js + React + TypeScript + TailwindCSS** (frontend), **NestJS/Node** (backend), **PostgreSQL**, **Whisper** (`mlx_whisper`) for speech recognition, and an LLM (Ollama) + image model (fal.ai / Pollinations) for comic generation.
 
-The task is to **recreate these designs in the target codebase** using the stack from the project brief — **Next.js + React + TypeScript + TailwindCSS** (frontend), **NestJS/Node** (backend), **PostgreSQL**, with **Whisper / faster-whisper** for speech recognition and an LLM + image model (Stable Diffusion / ComfyUI) for comic generation. Use the codebase's established component patterns. The HTML uses inline styles only because of the authoring environment — in the real app, express everything as Tailwind classes / design tokens.
-
-> Note on the microphone: the prototype uses the browser **Web Speech API** (`webkitSpeechRecognition`) for a live demo. In production, capture audio with `MediaRecorder` and send it to your **Whisper** backend for transcription + a pronunciation-assessment service (SpeechBrain/Kaldi) for the score — do not ship the Web Speech API as the real engine.
+> Note on the microphone: production captures audio with `MediaRecorder` and sends it to the **Whisper** backend for transcription, scored word-by-word against the target line.
 
 ## Fidelity
 **High-fidelity (hifi).** Final colors, typography, spacing, and interactions are specified. Recreate the UI pixel-accurately using the codebase's libraries. Image/character art is shown as **striped placeholders with monospace labels** (e.g. `comic scene · hero + robot`) — these are slots for AI-generated images, not final art.
@@ -116,9 +112,4 @@ The task is to **recreate these designs in the target codebase** using the stack
 ## Assets
 - **Fonts:** Google Fonts — Baloo 2, Nunito, Bangers.
 - **Emoji** used as lightweight icons (🎙️🔥💎🏆🎯🦸🤖🦊🧚🏛️). Swap for a real icon set if preferred.
-- **Imagery:** none final — all comic/character art is a placeholder slot to be filled by AI image generation (Stable Diffusion / ComfyUI / Fooocus per the brief).
-
-## Files
-- `ComicSpeak AI.dc.html` — static hi-fi spec of all 6 screens + 2 landing directions.
-- `ComicSpeak AI Prototype.dc.html` — interactive prototype (navigation, generation, real mic + scoring).
-- `support.js` — runtime for the `.dc.html` files (so they open in a browser; not needed in production).
+- **Imagery:** comic/character art is generated per-comic via fal.ai (or Pollinations as a free fallback) — see `backend/src/images/images.service.ts`.

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { ReadingFlow } from "@/components/reading/ReadingFlow";
-import { getComic } from "@/lib/api";
+import { ComicSession } from "@/components/reading/ComicSession";
+import { getComic, getMe } from "@/lib/api";
 import { Comic } from "@/lib/types";
 
 async function loadComic(id: string): Promise<Comic | null> {
@@ -14,6 +14,7 @@ async function loadComic(id: string): Promise<Comic | null> {
 export default async function ReadPage({ params }: { params: { comicId: string } }) {
   const comic = await loadComic(params.comicId);
   if (!comic || comic.panels.length === 0) notFound();
+  const me = await getMe();
 
-  return <ReadingFlow comic={comic} />;
+  return <ComicSession comic={comic} streakDays={me?.streakDays ?? 0} />;
 }

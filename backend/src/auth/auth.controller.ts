@@ -21,16 +21,16 @@ export class AuthController {
 
   @Post("register")
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
-    const user = await this.authService.register(dto.name, dto.password);
+    const user = await this.authService.register(dto.name, dto.password, dto.teacherCode);
     this.setSessionCookie(res, user.id);
-    return { id: user.id, name: user.name };
+    return { id: user.id, name: user.name, role: user.role };
   }
 
   @Post("login")
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const user = await this.authService.validateUser(dto.name, dto.password);
+    const user = await this.authService.validateUser(dto.name, dto.password, dto.role);
     this.setSessionCookie(res, user.id);
-    return { id: user.id, name: user.name };
+    return { id: user.id, name: user.name, role: user.role };
   }
 
   @Post("logout")

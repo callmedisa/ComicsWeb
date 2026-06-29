@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { fal } from "@fal-ai/client";
 import { ArtStyle, CharacterType } from "@prisma/client";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
@@ -10,10 +11,18 @@ const REQUEST_TIMEOUT_MS = 25_000;
 const RETRY_DELAYS_MS = [3_000, 8_000];
 const RATE_LIMIT_RETRY_DELAYS_MS = [4_000, 9_000];
 
+// fal.ai + FLUX [schnell] is fast and stable but costs ~$0.003/image. Falls
+// back to the free Pollinations endpoint when no FAL_KEY is configured so
+// local dev works without an API key.
+const FAL_KEY = process.env.FAL_KEY;
+if (FAL_KEY) fal.config({ credentials: FAL_KEY });
+
 const STYLE_SUFFIX: Record<ArtStyle, string> = {
-  Cartoon: "cute children's cartoon illustration, bright colors, simple shapes, friendly",
-  Comic: "comic book style, bold ink outlines, halftone shading, dynamic angle",
-  Pixel: "16-bit pixel art style, retro video game aesthetic, vibrant palette",
+  Cartoon:
+    "children's cartoon panel, bright flat colors, clean outlines, friendly characters, Pixar-inspired",
+  Comic:
+    "comic book panel, bold ink outlines, flat colors, halftone dots, dynamic composition, Marvel/DC style",
+  Pixel: "16-bit pixel art panel, retro SNES aesthetic, vibrant limited palette",
 };
 
 // Free diffusion backends frequently warp limbs/joints, especially in dynamic
@@ -76,6 +85,43 @@ export class ImagesService {
   }
 
   private async generateImage(id: string, prompt: string): Promise<string | null> {
+    return FAL_KEY ? this.generateImageFal(id, prompt) : this.generateImagePollinations(id, prompt);
+  }
+
+  private async saveBuffer(id: string, buffer: Buffer): Promise<string> {
+    await mkdir(PUBLIC_DIR, { recursive: true });
+    const filename = `${id}.jpg`;
+    await writeFile(join(PUBLIC_DIR, filename), buffer);
+    return `${BACKEND_PUBLIC_URL}/generated/${filename}`;
+  }
+
+  private async generateImageFal(id: string, prompt: string): Promise<string | null> {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const result = await fal.run("fal-ai/flux/schnell", {
+          input: { prompt, image_size: "landscape_4_3", num_images: 1 },
+        });
+        const imageUrl: string | undefined = result.data?.images?.[0]?.url;
+        if (!imageUrl) throw new Error("fal.ai returned no image");
+
+        // fal.ai's CDN URL is itself permanent hosted storage — use it
+        // directly instead of downloading + re-saving to our own disk, which
+        // doesn't persist across restarts on most free hosting tiers.
+        return imageUrl;
+      } catch (err) {
+        const message = (err as Error).message;
+        if (attempt < MAX_ATTEMPTS) {
+          this.logger.warn(`fal.ai attempt ${attempt} failed for ${id} (${message}), retrying...`);
+          await sleep(RETRY_DELAYS_MS[attempt - 1] ?? 8_000);
+        } else {
+          this.logger.warn(`fal.ai generation gave up for ${id}: ${message}`);
+        }
+      }
+    }
+    return null;
+  }
+
+  private async generateImagePollinations(id: string, prompt: string): Promise<string | null> {
     const basePrompt = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=384&nologo=true&model=flux`;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -94,11 +140,7 @@ export class ImagesService {
         }
 
         const buffer = Buffer.from(await res.arrayBuffer());
-        await mkdir(PUBLIC_DIR, { recursive: true });
-        const filename = `${id}.jpg`;
-        await writeFile(join(PUBLIC_DIR, filename), buffer);
-
-        return `${BACKEND_PUBLIC_URL}/generated/${filename}`;
+        return await this.saveBuffer(id, buffer);
       } catch (err) {
         const message = (err as Error).message;
         if (attempt < MAX_ATTEMPTS) {

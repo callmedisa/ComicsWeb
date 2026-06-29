@@ -17,6 +17,7 @@ export class UsersService {
 
     return {
       name: user.name,
+      role: user.role,
       xp: user.xp,
       xpGoal: user.xpGoal,
       gems: user.gems,

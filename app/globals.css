@@ -44,4 +44,47 @@
   .placeholder-art {
     @apply flex items-center justify-center bg-[repeating-linear-gradient(135deg,#eaf4f1,#eaf4f1_10px,#ddede9_10px,#ddede9_20px)] font-mono text-[10px] uppercase tracking-[.1em] text-muted;
   }
+
+  .bg-dots {
+    background-color: #e7f3ef;
+    background-image: radial-gradient(#bfe0d9 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+  }
+
+  .text-stroke-ink {
+    -webkit-text-stroke: 2px #143230;
+  }
+
+  .bg-dots-overlay {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.06) 2px, transparent 2px);
+    background-size: 20px 20px;
+  }
+}
+
+[data-reveal] {
+  opacity: 0;
+  transition:
+    opacity 0.72s cubic-bezier(0.2, 0.75, 0.25, 1),
+    transform 0.72s cubic-bezier(0.2, 0.75, 0.25, 1);
+  will-change: opacity, transform;
+}
+[data-reveal="left"] {
+  transform: translateX(-72px);
+}
+[data-reveal="right"] {
+  transform: translateX(72px);
+}
+[data-reveal="up"] {
+  transform: translateY(50px);
+}
+[data-reveal].is-in {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
 }
