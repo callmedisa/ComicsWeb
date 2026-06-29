@@ -11,10 +11,17 @@ export class AuthController {
 
   private setSessionCookie(res: Response, userId: string) {
     const token = this.authService.signToken(userId);
+    // Frontend and backend live on different domains in production
+    // (vercel.app / onrender.com) — that's a cross-site request as far as
+    // the browser is concerned, so the cookie needs SameSite=None, which
+    // browsers only honor when Secure is also set. Locally both run on
+    // http://localhost, where Secure cookies aren't sent at all, so dev
+    // needs the old Lax/non-secure combination instead.
+    const isProd = process.env.NODE_ENV === "production";
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false,
+      sameSite: isProd ? "none" : "lax",
+      secure: isProd,
       maxAge: COOKIE_MAX_AGE_MS,
     });
   }
@@ -35,7 +42,8 @@ export class AuthController {
 
   @Post("logout")
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(COOKIE_NAME);
+    const isProd = process.env.NODE_ENV === "production";
+    res.clearCookie(COOKIE_NAME, { sameSite: isProd ? "none" : "lax", secure: isProd });
     return { ok: true };
   }
 }
