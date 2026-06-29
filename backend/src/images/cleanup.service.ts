@@ -29,10 +29,16 @@ export class GeneratedFilesCleanupService implements OnModuleInit {
       return;
     }
 
-    const [panels, characters] = await Promise.all([
-      this.prisma.panel.findMany({ select: { id: true } }),
-      this.prisma.character.findMany({ select: { id: true } }),
-    ]);
+    let panels: { id: string }[], characters: { id: string }[];
+    try {
+      [panels, characters] = await Promise.all([
+        this.prisma.panel.findMany({ select: { id: true } }),
+        this.prisma.character.findMany({ select: { id: true } }),
+      ]);
+    } catch (err) {
+      this.logger.warn(`Skipping cleanup, failed to read panel/character ids: ${(err as Error).message}`);
+      return;
+    }
     const validIds = new Set([...panels.map((p) => p.id), ...characters.map((c) => c.id)]);
 
     let freedBytes = 0;
