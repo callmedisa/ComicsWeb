@@ -34,7 +34,7 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "llama3.2:3b";
 // Groq hosts an OpenAI-compatible chat API for free — used instead of a local
 // Ollama server when deployed somewhere that can't run Ollama itself.
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+const GROQ_MODEL = process.env.GROQ_MODEL ?? "openai/gpt-oss-20b";
 const MAX_ATTEMPTS = 2;
 
 type ChatMessage = { role: "system" | "user"; content: string };
