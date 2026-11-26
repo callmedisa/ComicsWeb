@@ -293,8 +293,9 @@ export default async function LandingPage() {
               </p>
               <div className="mt-5 flex flex-col gap-2 text-sm font-bold text-muted-2">
                 <span>🕘 Mon–Fri 8:00–17:30</span>
-                <span>📞 (111) 111-1111</span>
-                <span>✉️ hello@comicspeak.ai</span>
+                <a href="tel:+77750072377" className="hover:text-primary">
+                  📞 +7 775 007 23 77
+                </a>
               </div>
               <Link
                 href="https://go.2gis.com/Fewxu"
