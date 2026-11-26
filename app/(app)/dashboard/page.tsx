@@ -6,6 +6,13 @@ import { getMe, getComics } from "@/lib/api";
 const statusStyles: Record<string, string> = {
   done: "bg-green text-white",
   generating: "bg-coral text-white",
+  failed: "bg-red text-white",
+};
+
+const statusLabels: Record<string, string> = {
+  done: "Done",
+  generating: "In progress",
+  failed: "Failed",
 };
 
 export default async function DashboardPage() {
@@ -80,7 +87,7 @@ export default async function DashboardPage() {
             <span className="font-display text-lg font-bold text-ink">Daily challenge</span>
           </div>
           <p className="mb-3.5 text-sm font-bold leading-[1.45] text-muted">
-            Speak {dailyChallenge.goal} lines today to win a bonus badge.
+            Speak {dailyChallenge.goal} lines today to earn bonus XP.
           </p>
           <div className="mb-3.5 flex gap-1.5">
             {Array.from({ length: dailyChallenge.goal }).map((_, i) => (
@@ -110,7 +117,7 @@ export default async function DashboardPage() {
         {comics.map((comic) => (
           <Link
             key={comic.id}
-            href={`/read/${comic.id}`}
+            href={comic.status === "failed" ? "/create" : `/read/${comic.id}`}
             className="overflow-hidden rounded-[18px] border border-border bg-white shadow-card transition-transform hover:-translate-y-0.5"
           >
             <div className="relative h-[108px]">
@@ -127,7 +134,7 @@ export default async function DashboardPage() {
               <span
                 className={`absolute left-2.5 top-2.5 rounded-[7px] px-2 py-1 text-[10px] font-extrabold uppercase ${statusStyles[comic.status]}`}
               >
-                {comic.status === "done" ? "Done" : "In progress"}
+                {statusLabels[comic.status]}
               </span>
             </div>
             <div className="p-[13px]">

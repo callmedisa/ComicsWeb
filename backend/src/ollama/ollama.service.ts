@@ -35,7 +35,22 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "llama3.2:3b";
 // Ollama server when deployed somewhere that can't run Ollama itself.
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = process.env.GROQ_MODEL ?? "openai/gpt-oss-20b";
-const MAX_ATTEMPTS = 2;
+// Groq's JSON mode occasionally rejects a generation outright (HTTP 400 when
+// the model's output wasn't valid JSON) and the free tier rate-limits bursts
+// (429). Both are transient, so retry a few times with a pause in between.
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [2_000, 5_000];
+const MAX_RETRY_WAIT_MS = 15_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+class LlmRequestError extends Error {
+  constructor(message: string, readonly retryAfterMs?: number) {
+    super(message);
+  }
+}
 
 type ChatMessage = { role: "system" | "user"; content: string };
 
@@ -137,7 +152,16 @@ export class OllamaService {
       }),
       signal: AbortSignal.timeout(60_000),
     });
-    if (!res.ok) throw new Error(`Groq request failed: ${res.status}`);
+    if (!res.ok) {
+      // Keep the provider's explanation — without it a failed comic leaves
+      // nothing in the logs to tell a rate limit from a bad request.
+      const detail = (await res.text().catch(() => "")).slice(0, 300);
+      const retryAfterSec = Number(res.headers.get("retry-after"));
+      throw new LlmRequestError(
+        `Groq request failed: ${res.status} ${detail}`,
+        res.status === 429 && retryAfterSec > 0 ? retryAfterSec * 1000 : undefined
+      );
+    }
     const body = await res.json();
     return body?.choices?.[0]?.message?.content ?? "";
   }
@@ -160,7 +184,12 @@ export class OllamaService {
       } catch (err) {
         lastError = err as Error;
         this.logger.warn(`Attempt ${attempt} failed: ${lastError.message}`);
+        if (attempt < MAX_ATTEMPTS && err instanceof LlmRequestError && err.retryAfterMs) {
+          await sleep(Math.min(err.retryAfterMs, MAX_RETRY_WAIT_MS));
+          continue;
+        }
       }
+      if (attempt < MAX_ATTEMPTS) await sleep(RETRY_DELAYS_MS[attempt - 1] ?? 5_000);
     }
 
     throw lastError ?? new Error("LLM returned a low-quality story after retries");
@@ -203,6 +232,25 @@ export class OllamaService {
   }
 
   async generateVocabQuiz(words: string[]): Promise<VocabQuizQuestion[]> {
+    let lastError: Error | undefined;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const questions = await this.requestVocabQuiz(words);
+        if (questions.length > 0) return questions;
+        lastError = new Error("LLM returned an empty quiz");
+      } catch (err) {
+        lastError = err as Error;
+      }
+      this.logger.warn(`Quiz attempt ${attempt} failed: ${lastError.message}`);
+      if (attempt < MAX_ATTEMPTS) {
+        const retryAfter = lastError instanceof LlmRequestError ? lastError.retryAfterMs : undefined;
+        await sleep(Math.min(retryAfter ?? RETRY_DELAYS_MS[attempt - 1] ?? 5_000, MAX_RETRY_WAIT_MS));
+      }
+    }
+    throw lastError ?? new Error("Couldn't generate a quiz");
+  }
+
+  private async requestVocabQuiz(words: string[]): Promise<VocabQuizQuestion[]> {
     const schema = {
       type: "object",
       properties: {

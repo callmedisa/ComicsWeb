@@ -4,10 +4,11 @@ import { OllamaService } from "../ollama/ollama.service";
 import { CoursesController } from "./courses.controller";
 import { LessonsController } from "./lessons.controller";
 import { CoursesService } from "./courses.service";
+import { CourseCatalogSyncService } from "./catalog-sync.service";
 
 @Module({
   imports: [ComicsModule],
   controllers: [CoursesController, LessonsController],
-  providers: [CoursesService, OllamaService],
+  providers: [CoursesService, OllamaService, CourseCatalogSyncService],
 })
 export class CoursesModule {}

@@ -175,6 +175,7 @@ export default async function LandingPage() {
         ))}
       </section>
 
+      {(teachers.length > 0 || isAdmin) && (
       <section className="px-10 py-16">
         <Reveal direction="up" className="mb-10 text-center">
           <span className="label-caps mb-4 inline-block rounded-pill bg-primary-soft px-3 py-1.5 text-primary">
@@ -186,6 +187,7 @@ export default async function LandingPage() {
         </Reveal>
         <TeacherManager teachers={teachers} isAdmin={isAdmin} />
       </section>
+      )}
 
       <section className="bg-dots px-10 py-16">
         <Reveal direction="up" className="mb-10 text-center">
