@@ -4,6 +4,16 @@ import { CourseSummary } from "@/lib/types";
 const statusIcon: Record<string, string> = { completed: "✓", available: "▶", locked: "🔒" };
 
 export function CourseMap({ courses }: { courses: CourseSummary[] }) {
+  if (courses.length === 0) {
+    return (
+      <div className="mx-auto max-w-lg rounded-card border border-border bg-white p-8 text-center shadow-card">
+        <span className="text-4xl">📚</span>
+        <p className="mt-3 font-display font-bold text-ink">No courses yet</p>
+        <p className="mt-1 text-sm text-muted">Lessons are on their way — check back soon.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-2xl">
       {courses.map((course) => (

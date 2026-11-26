@@ -15,7 +15,7 @@ export default async function MyComicsPage() {
         {comics.map((comic) => (
           <Link
             key={comic.id}
-            href={`/read/${comic.id}`}
+            href={comic.status === "failed" ? "/create" : `/read/${comic.id}`}
             className="rounded-card border border-border bg-white p-4 shadow-card transition-transform hover:-translate-y-1"
           >
             {comic.panels[0]?.imageUrl ? (
@@ -33,6 +33,11 @@ export default async function MyComicsPage() {
             <div className="mt-3 font-display font-bold text-ink">
               {comic.title}
             </div>
+            {comic.status === "failed" && (
+              <div className="mt-1 text-xs font-bold text-red-text">
+                Couldn&rsquo;t draw this one — tap to try again
+              </div>
+            )}
           </Link>
         ))}
       </div>
