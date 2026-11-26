@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Comic } from "@/lib/types";
 import { scoreSpeech } from "@/lib/scoring";
 import { recordAttempt, regeneratePanelImage, transcribeAudio } from "@/lib/api-client";
+import { useLineAudio } from "@/lib/use-line-audio";
 import { ComicPage } from "./ComicPage";
 import { ScoreRing } from "./ScoreRing";
 import { Waveform } from "./Waveform";
@@ -28,6 +29,9 @@ export function ReadingFlow({
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [lineScores, setLineScores] = useState<(number | undefined)[]>([]);
+  // XP the server actually awarded per line (0 when re-reading a line that
+  // already paid out), summed across attempts.
+  const [lineXp, setLineXp] = useState<number[]>([]);
   const [result, setResult] = useState<ReturnType<typeof scoreSpeech> | null>(
     null
   );
@@ -38,6 +42,7 @@ export function ReadingFlow({
   const panel = panels[panelIndex];
   const line = panel?.dialogue[0];
   const isLast = panelIndex === panels.length - 1;
+  const lineAudio = useLineAudio(line);
 
   async function retryPanelImage() {
     if (!panel) return;
@@ -62,7 +67,15 @@ export function ReadingFlow({
       next[panelIndex] = scored.score;
       return next;
     });
-    recordAttempt({ lineId: line.id, transcript: scored.recognized, score: scored.score });
+    const index = panelIndex;
+    recordAttempt({ lineId: line.id, transcript: scored.recognized, score: scored.score }).then((saved) => {
+      if (!saved?.xpAwarded) return;
+      setLineXp((xp) => {
+        const next = [...xp];
+        next[index] = (next[index] ?? 0) + saved.xpAwarded;
+        return next;
+      });
+    });
   }
 
   function computeResults() {
@@ -70,13 +83,14 @@ export function ReadingFlow({
     const avgScore = scored.length
       ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length)
       : 0;
-    const earnedXp = scored.filter((s) => s >= 70).length * 30;
+    const earnedXp = lineXp.reduce((sum, xp) => sum + (xp ?? 0), 0);
     return { avgScore, totalLines: panels.length, earnedXp };
   }
 
   async function startRecording() {
     if (!line) return;
     setError(null);
+    lineAudio.stop();
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -134,20 +148,6 @@ export function ReadingFlow({
     setError(null);
     setRecState("idle");
     if (!isLast) setPanelIndex((i) => i + 1);
-  }
-
-  function listen() {
-    if (!line || typeof window === "undefined" || !window.speechSynthesis) return;
-    const utter = new SpeechSynthesisUtterance(line.text);
-    utter.rate = 1;
-    window.speechSynthesis.speak(utter);
-  }
-
-  function listenSlow() {
-    if (!line || typeof window === "undefined" || !window.speechSynthesis) return;
-    const utter = new SpeechSynthesisUtterance(line.text);
-    utter.rate = 0.6;
-    window.speechSynthesis.speak(utter);
   }
 
   return (
@@ -221,16 +221,18 @@ export function ReadingFlow({
                   {error && <p className="text-sm font-bold text-red-text">{error}</p>}
                   <div className="flex gap-3">
                     <button
-                      onClick={listen}
-                      className="btn-3d border-2 border-border bg-white px-4 py-2 text-sm text-ink"
+                      onClick={() => lineAudio.play("normal")}
+                      disabled={lineAudio.loading !== null}
+                      className="btn-3d border-2 border-border bg-white px-4 py-2 text-sm text-ink disabled:opacity-60"
                     >
-                      ▶ Listen
+                      {lineAudio.loading === "normal" ? "⏳ Loading…" : lineAudio.playing === "normal" ? "🔊 Playing" : "▶ Listen"}
                     </button>
                     <button
-                      onClick={listenSlow}
-                      className="btn-3d border-2 border-border bg-white px-4 py-2 text-sm text-ink"
+                      onClick={() => lineAudio.play("slow")}
+                      disabled={lineAudio.loading !== null}
+                      className="btn-3d border-2 border-border bg-white px-4 py-2 text-sm text-ink disabled:opacity-60"
                     >
-                      🐢 Slow
+                      {lineAudio.loading === "slow" ? "⏳ Loading…" : lineAudio.playing === "slow" ? "🔊 Playing" : "🐢 Slow"}
                     </button>
                   </div>
                 </div>
@@ -288,9 +290,9 @@ export function ReadingFlow({
                   <p className="text-xs text-muted">
                     We heard: &ldquo;{result.recognized}&rdquo;
                   </p>
-                  {result.score >= 70 && (
+                  {(lineXp[panelIndex] ?? 0) > 0 && (
                     <p className="font-display text-sm font-bold text-gold-text">
-                      +30 XP
+                      +{lineXp[panelIndex]} XP
                     </p>
                   )}
                   <div className="mt-2 flex gap-3">

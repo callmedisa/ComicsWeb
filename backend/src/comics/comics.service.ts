@@ -5,8 +5,29 @@ import { OllamaService } from "../ollama/ollama.service";
 import { ImagesService } from "../images/images.service";
 import { mapWithConcurrency } from "../common/concurrency";
 import { CreateComicDto, PANELS_BY_LENGTH } from "./dto";
+import { SUCCESS_SCORE_THRESHOLD } from "../speech/dto";
 
 const PANEL_IMAGE_CONCURRENCY = 1;
+
+// Each line carries at most one passing attempt — enough to tell whether the
+// owner has already read it successfully, without loading their full history.
+const COMIC_INCLUDE = {
+  panels: {
+    orderBy: { index: "asc" as const },
+    include: {
+      dialogue: {
+        orderBy: { order: "asc" as const },
+        include: {
+          speechAttempts: {
+            where: { score: { gte: SUCCESS_SCORE_THRESHOLD } },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  },
+};
 
 @Injectable()
 export class ComicsService {
@@ -19,6 +40,7 @@ export class ComicsService {
   ) {}
 
   private serialize(comic: any) {
+    const lines = comic.panels.flatMap((p: any) => p.dialogue);
     return {
       id: comic.id,
       title: comic.title,
@@ -28,6 +50,8 @@ export class ComicsService {
       status: comic.status,
       progressPct: comic.progressPct,
       panelsTotal: comic.panelsTotal,
+      linesTotal: lines.length,
+      linesPracticed: lines.filter((d: any) => d.speechAttempts?.length > 0).length,
       panels: comic.panels.map((p: any) => ({
         id: p.id,
         index: p.index,
@@ -46,7 +70,7 @@ export class ComicsService {
     const comics = await this.prisma.comic.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      include: { panels: { orderBy: { index: "asc" }, include: { dialogue: { orderBy: { order: "asc" } } } } },
+      include: COMIC_INCLUDE,
     });
     return comics.map((c) => this.serialize(c));
   }
@@ -54,7 +78,7 @@ export class ComicsService {
   async findOne(id: string, userId: string) {
     const comic = await this.prisma.comic.findUnique({
       where: { id },
-      include: { panels: { orderBy: { index: "asc" }, include: { dialogue: { orderBy: { order: "asc" } } } } },
+      include: COMIC_INCLUDE,
     });
     if (!comic || comic.userId !== userId) throw new NotFoundException(`Comic ${id} not found`);
     return this.serialize(comic);
