@@ -18,6 +18,7 @@ A web platform where kids learn to **speak English by making their own comics**.
 
 - ✨ **AI comic generation** — from a topic, art style and length, an LLM writes the story and dialogue, and an image model draws every panel
 - 🎙️ **Speech practice** — the child reads a line aloud; speech is transcribed with Whisper and scored word by word, with missing words highlighted
+- 🔊 **Natural voice** — "Listen" and "Slow" read each line aloud in a human-sounding neural voice (ElevenLabs "Rachel" via fal.ai); every clip is generated once and cached
 - 🦸 **Characters** — reusable characters (superhero, robot, animal, fantasy, historical) that appear in new comics
 - 📚 **Courses** — lessons grouped by level (A1 Daily Life, A2 Adventure); each lesson unlocks the next
 - 🏆 **Gamification** — XP, levels, daily streaks, a daily challenge and achievements
@@ -35,9 +36,11 @@ child reads a line ─▶ microphone (MediaRecorder) ─▶ Whisper (Groq or loc
                                             │
                                             ▼
                        word-by-word match against the line ─▶ score, missing words, XP
+
+"Listen" / "Slow" ─▶ text-to-speech (fal.ai ElevenLabs or Kokoro) ─▶ cached audio clip
 ```
 
-Every AI piece has a free or local fallback, so the project runs without paid API keys: Ollama instead of Groq for text, Pollinations instead of fal.ai for images, and a local Whisper service instead of Groq for speech.
+Every AI piece has a free or local fallback, so the project runs without paid API keys: Ollama instead of Groq for text, Pollinations instead of fal.ai for images, a local Whisper service instead of Groq for speech, and the browser's built-in voice instead of fal.ai for "Listen".
 
 ## Tech stack
 
@@ -45,7 +48,7 @@ Every AI piece has a free or local fallback, so the project runs without paid AP
 |---|---|
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS |
 | Backend | NestJS, Prisma, PostgreSQL, JWT auth in an HTTP-only cookie |
-| AI | Groq / Ollama (LLM), fal.ai FLUX / Pollinations (images), Whisper via Groq or `mlx-whisper` |
+| AI | Groq / Ollama (LLM), fal.ai FLUX / Pollinations (images), Whisper via Groq or `mlx-whisper`, text-to-speech via fal.ai (ElevenLabs / Kokoro) |
 | Speech service | Python, FastAPI, `mlx-whisper` ([`whisper-service/`](whisper-service)) |
 
 ## Project structure
@@ -79,7 +82,7 @@ cp .env.example .env          # fill in the values you need
 npm install
 npx prisma migrate deploy
 npx prisma db seed            # demo student "Mia" / demo1234 and sample comics
-set -a; source .env; set +a   # NestJS does not read .env by itself
+set -a; source .env; set +a   # load .env into the shell for the next script
 npx ts-node prisma/seed-courses.ts
 npm run dev
 ```

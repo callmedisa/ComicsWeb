@@ -12,7 +12,14 @@ export default async function DashboardPage() {
   const [user, comics] = await Promise.all([getMe(), getComics()]);
   if (!user) return null;
   if (user.role === "TEACHER") redirect("/admin");
-  const continueComic = comics.find((c) => c.status === "done" && c.panels.length > 0);
+  const readable = comics.filter((c) => c.status === "done" && c.panels.length > 0);
+  // Prefer the newest comic that still has unread lines; fall back to the
+  // newest finished one so the card isn't empty once everything is read.
+  const continueComic =
+    readable.find((c) => c.linesPracticed < c.linesTotal) ?? readable[0];
+  const readingPct = continueComic?.linesTotal
+    ? Math.round((continueComic.linesPracticed / continueComic.linesTotal) * 100)
+    : 0;
   const { dailyChallenge } = user;
 
   return (
@@ -43,7 +50,7 @@ export default async function DashboardPage() {
             </h2>
             <p className="mb-3.5 text-[13px] font-bold text-[#A9CFCA]">
               {continueComic
-                ? `${continueComic.panelsTotal} panels to practice`
+                ? `${continueComic.linesPracticed} of ${continueComic.linesTotal} lines read`
                 : "Create your first AI comic to start speaking practice"}
             </p>
             <div className="flex items-center gap-3.5">
@@ -57,7 +64,7 @@ export default async function DashboardPage() {
                 <div className="h-[9px] flex-1 overflow-hidden rounded-pill bg-white/15">
                   <div
                     className="h-full bg-green"
-                    style={{ width: `${continueComic.progressPct}%` }}
+                    style={{ width: `${readingPct}%` }}
                   />
                 </div>
               )}

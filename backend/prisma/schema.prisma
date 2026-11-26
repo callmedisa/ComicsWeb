@@ -163,3 +163,13 @@ model UserLessonProgress {
 
   @@unique([userId, lessonId])
 }
+
+// Cache of generated text-to-speech clips. `key` is a hash of
+// model + voice + speed + text, so identical lines ("Hello!") are only ever
+// synthesized once, and switching voices naturally produces fresh clips.
+model SpeechAudio {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  url       String
+  createdAt DateTime @default(now())
+}

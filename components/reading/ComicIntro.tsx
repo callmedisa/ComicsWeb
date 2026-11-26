@@ -6,6 +6,7 @@ export function ComicIntro({
   title,
   genre,
   totalLines,
+  linesPracticed = 0,
   streakDays,
   onStart,
   comicId,
@@ -14,12 +15,14 @@ export function ComicIntro({
   title: string;
   genre: string;
   totalLines: number;
+  linesPracticed?: number;
   streakDays: number;
   onStart: () => void;
   comicId: string;
   backHref?: string;
 }) {
-  const maxXp = totalLines * 30;
+  // XP is paid once per line, so only lines not yet read successfully count.
+  const maxXp = Math.max(0, totalLines - linesPracticed) * 30;
   const estMinutes = Math.max(1, Math.round(totalLines * 0.5));
 
   return (

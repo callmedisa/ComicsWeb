@@ -29,6 +29,7 @@ export function ComicSession({
         title={comic.title}
         genre={comic.genre}
         totalLines={comic.panels.length}
+        linesPracticed={comic.linesPracticed}
         streakDays={streakDays}
         comicId={comic.id}
         onStart={() => setPhase("reading")}

@@ -32,6 +32,8 @@ export interface Comic {
   progressPct: number; // status bar while generating
   panels: Panel[];
   panelsTotal: number;
+  linesTotal: number;
+  linesPracticed: number; // lines read aloud with a passing score
 }
 
 export interface Character {

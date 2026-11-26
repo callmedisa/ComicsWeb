@@ -136,7 +136,7 @@ export function CreateFlow({ characters }: { characters: Character[] }) {
 
       <div className="grid grid-cols-1 gap-7 md:grid-cols-2">
         <div className="rounded-card border border-border bg-white p-7 shadow-card">
-          <label className="label-caps mb-2 block">What's your story about?</label>
+          <label className="label-caps mb-2 block">What&rsquo;s your story about?</label>
           <textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value.slice(0, 240))}
@@ -286,7 +286,7 @@ export function CreateFlow({ characters }: { characters: Character[] }) {
             <div className="flex h-72 flex-col items-center justify-center gap-3 text-center">
               <span className="text-3xl">😕</span>
               <p className="text-sm font-bold text-red-text">
-                Our artist got stuck. Let's try again.
+                Our artist got stuck. Let&rsquo;s try again.
               </p>
               <button
                 onClick={redo}

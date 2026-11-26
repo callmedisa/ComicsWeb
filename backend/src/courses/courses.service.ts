@@ -119,13 +119,17 @@ export class CoursesService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException("User not found");
 
-    const xpAwarded = Math.round((lesson.xpReward * score) / 100);
+    // Replaying a completed lesson only pays out the improvement over the best
+    // previous score, so the lesson can't be farmed for its full reward.
+    const previousBest = existing.status === "completed" ? existing.score ?? 0 : 0;
+    const xpFor = (s: number) => Math.round((lesson.xpReward * s) / 100);
+    const xpAwarded = Math.max(0, xpFor(score) - xpFor(previousBest));
     const leveling = applyLevelUp(user.level, user.xp + xpAwarded, user.xpGoal);
 
     await this.prisma.$transaction([
       this.prisma.userLessonProgress.update({
         where: { userId_lessonId: { userId, lessonId } },
-        data: { status: "completed", score, completedAt: new Date() },
+        data: { status: "completed", score: Math.max(score, previousBest), completedAt: new Date() },
       }),
       this.prisma.user.update({
         where: { id: userId },
@@ -133,7 +137,12 @@ export class CoursesService {
       }),
     ]);
 
-    return { xpAwarded, leveledUp: leveling.leveledUp, level: leveling.level };
+    return {
+      xpAwarded,
+      leveledUp: leveling.leveledUp,
+      level: leveling.level,
+      replay: existing.status === "completed",
+    };
   }
 
   async getQuiz(lessonId: string, userId: string) {

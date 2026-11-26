@@ -15,7 +15,7 @@ export function LessonFlow({ lesson }: { lesson: LessonSummary }) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [comic, setComic] = useState<Comic | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [result, setResult] = useState<{ xpAwarded: number; leveledUp: boolean; level: number } | null>(null);
+  const [result, setResult] = useState<{ xpAwarded: number; leveledUp: boolean; level: number; replay?: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function poll(comicId: string) {
@@ -123,6 +123,11 @@ export function LessonFlow({ lesson }: { lesson: LessonSummary }) {
         <span className="text-4xl">🎉</span>
         <h1 className="mt-3 font-display text-2xl font-extrabold text-ink">Lesson complete!</h1>
         <p className="mt-2 font-display text-lg font-bold text-gold-text">+{result.xpAwarded} XP</p>
+        {result.replay && result.xpAwarded === 0 && (
+          <p className="mt-1 text-sm font-bold text-muted">
+            You already finished this lesson — beat your best score to earn more XP.
+          </p>
+        )}
         {result.leveledUp && (
           <p className="mt-1 font-display font-bold text-primary">
             Level up! You&rsquo;re now level {result.level} 🎉

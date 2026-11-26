@@ -98,6 +98,22 @@ export async function transcribeAudio(blob: Blob): Promise<string> {
   return body.transcript ?? "";
 }
 
+// URL of a natural-voice recording of a dialogue line (generated once on the
+// server, then cached). Null when TTS is unavailable — callers fall back to
+// the browser's built-in voice.
+export async function getLineAudioUrl(lineId: string, slow: boolean): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/speech/lines/${lineId}/audio${slow ? "?slow=1" : ""}`, {
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return typeof body.url === "string" ? body.url : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function previewCharacter(input: {
   type: CharacterType;
   name: string;
@@ -161,7 +177,7 @@ export async function getQuiz(lessonId: string): Promise<QuizQuestion[]> {
 export async function completeLesson(
   lessonId: string,
   score: number
-): Promise<{ xpAwarded: number; leveledUp: boolean; level: number }> {
+): Promise<{ xpAwarded: number; leveledUp: boolean; level: number; replay?: boolean }> {
   const res = await fetch(`${API_URL}/lessons/${lessonId}/complete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -228,15 +244,19 @@ export async function recordAttempt(input: {
   lineId: string;
   transcript: string;
   score: number;
-}): Promise<void> {
+}): Promise<{ xpAwarded: number } | null> {
   try {
-    await fetch(`${API_URL}/speech/attempts`, {
+    const res = await fetch(`${API_URL}/speech/attempts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify(input),
     });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const body = await res.json();
+    return { xpAwarded: body.xpAwarded ?? 0 };
   } catch (err) {
     console.warn("Failed to record speech attempt", err);
+    return null;
   }
 }

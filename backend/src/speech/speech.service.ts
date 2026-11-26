@@ -60,6 +60,17 @@ export class SpeechService {
     return (body.text ?? "").trim();
   }
 
+  async getLineText(lineId: string, userId: string): Promise<string> {
+    const line = await this.prisma.dialogueLine.findUnique({
+      where: { id: lineId },
+      select: { text: true, panel: { select: { comic: { select: { userId: true } } } } },
+    });
+    if (!line || line.panel.comic.userId !== userId) {
+      throw new NotFoundException(`Line ${lineId} not found`);
+    }
+    return line.text;
+  }
+
   async recordAttempt(dto: CreateAttemptDto, userId: string) {
     if (!dto.lineId) throw new BadRequestException("lineId is required");
     if (!Number.isInteger(dto.score) || dto.score < 0 || dto.score > 100) {
@@ -78,6 +89,15 @@ export class SpeechService {
     if (!user) throw new NotFoundException("User not found");
 
     const success = dto.score >= SUCCESS_SCORE_THRESHOLD;
+
+    // XP/gems are paid once per line: re-reading a line you've already nailed
+    // is still good practice (it counts toward the daily challenge and
+    // streak), but shouldn't be an infinite XP faucet.
+    const alreadyPassed = success
+      ? (await this.prisma.speechAttempt.count({
+          where: { userId, lineId: dto.lineId, score: { gte: SUCCESS_SCORE_THRESHOLD } },
+        })) > 0
+      : false;
 
     await this.prisma.speechAttempt.create({
       data: {
@@ -99,7 +119,9 @@ export class SpeechService {
       dailyChallengeGoal: user.dailyChallengeGoal,
     });
     const bonusXp = progress.challengeJustCompleted ? user.dailyChallengeRewardXp : 0;
-    const leveling = applyLevelUp(user.level, user.xp + XP_PER_SUCCESS + bonusXp, user.xpGoal);
+    const lineXp = alreadyPassed ? 0 : XP_PER_SUCCESS;
+    const gemsAwarded = alreadyPassed ? 0 : GEMS_PER_SUCCESS;
+    const leveling = applyLevelUp(user.level, user.xp + lineXp + bonusXp, user.xpGoal);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -107,7 +129,7 @@ export class SpeechService {
         xp: leveling.xp,
         xpGoal: leveling.xpGoal,
         level: leveling.level,
-        gems: user.gems + GEMS_PER_SUCCESS,
+        gems: user.gems + gemsAwarded,
         streakDays: progress.streakDays,
         dailyChallengeDone: progress.dailyChallengeDone,
         lastActiveDate: progress.lastActiveDate,
@@ -116,8 +138,8 @@ export class SpeechService {
 
     return {
       recorded: true,
-      xpAwarded: XP_PER_SUCCESS + bonusXp,
-      gemsAwarded: GEMS_PER_SUCCESS,
+      xpAwarded: lineXp + bonusXp,
+      gemsAwarded,
       streakDays: progress.streakDays,
       challengeCompleted: progress.challengeJustCompleted,
       leveledUp: leveling.leveledUp,
